@@ -1,13 +1,30 @@
 plugins { id 'com.android.application' }
 
 android {
-    namespace 'org.dadirsons.budgettracker'
+    namespace 'com.dadir.phoneactivity'
     compileSdk 35
+
     defaultConfig {
-        applicationId 'org.dadirsons.budgettracker'
-        minSdk 24
+        applicationId 'com.dadir.phoneactivity'
+        minSdk 28
         targetSdk 35
-        versionCode 3
-        versionName '2.0.0'
+        versionCode 6
+        versionName '0.6.0'
     }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.documentfile:documentfile:1.0.1'
 }
