@@ -114,6 +114,9 @@ public class MediaLibraryActivity extends SecureActivity {
                 getContentResolver().takePersistableUriPermission(uri,
                         Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                 getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(BACKUP_URI, uri.toString()).apply();
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("auto_sync", true).apply();
+                ArchiveWorker.schedule(this);
+                ArchiveWorker.runNow(this);
                 Toast.makeText(this, "Backup folder connected", Toast.LENGTH_SHORT).show();
                 scan(savedFolders());
             } catch (SecurityException error) {
@@ -203,6 +206,21 @@ public class MediaLibraryActivity extends SecureActivity {
         View backupGap = new View(this); backupTools.addView(backupGap, new LinearLayout.LayoutParams(dp(8), 1));
         backupTools.addView(backup, new LinearLayout.LayoutParams(0, dp(48), 1));
         body.addView(backupTools, margin(0, 8, 0, 0));
+        boolean automatic = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("auto_sync", true);
+        Button auto = button(automatic ? "Automatic remote updates: ON" : "Automatic remote updates: OFF");
+        auto.setBackgroundColor(automatic ? Color.rgb(21,128,61) : Color.rgb(95,105,115));
+        auto.setOnClickListener(v -> {
+            boolean next = !getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("auto_sync", true);
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("auto_sync", next).apply();
+            if (next) { ArchiveWorker.schedule(this); ArchiveWorker.runNow(this); }
+            else ArchiveWorker.cancel(this);
+            render();
+        });
+        body.addView(auto, margin(0, 8, 0, 0));
+        long lastSync = getSharedPreferences(PREFS, MODE_PRIVATE).getLong("last_sync", 0);
+        String syncLine = lastSync == 0 ? "No automatic sync completed yet"
+                : "Last automatic sync: " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(lastSync);
+        body.addView(text(syncLine, 12, Color.GRAY, false), margin(2, 6, 0, 0));
         body.addView(text(savedFolders().size() + " folders connected  •  " + items.size() + " files", 15, Color.DKGRAY, false), margin(2, 12, 0, 8));
 
         LinearLayout filters = new LinearLayout(this);
