@@ -5,7 +5,7 @@
     <application
         android:name=".ArchiveApplication"
         android:allowBackup="true"
-        android:label="Phone Activity"
+        android:label="Maping"
         android:theme="@style/Theme.PhoneActivity">
         <activity android:name=".MainActivity" android:exported="false" />
         <activity
