@@ -27,7 +27,7 @@ public class PinActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL); root.setGravity(Gravity.CENTER);
         root.setPadding(dp(28),dp(28),dp(28),dp(28)); root.setBackgroundColor(Color.rgb(16,42,67));
-        TextView title = text(setup ? "Create your PIN" : "Phone Archive locked", 26, true);
+        TextView title = text(setup ? "Create your Maping PIN" : "Maping locked", 26, true);
         root.addView(title);
         message = text(setup ? "Choose a 4–8 digit PIN." : "Enter your PIN to continue.", 15, false);
         message.setPadding(0,dp(8),0,dp(20)); root.addView(message);
