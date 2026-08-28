@@ -1,4 +1,4 @@
-# Phone Activity Prototype
+# Maping Prototype
 
 A transparent, consent-based Android prototype for a device owner. It reads Android's system-maintained usage statistics; it does not run hidden surveillance or capture private content.
 
