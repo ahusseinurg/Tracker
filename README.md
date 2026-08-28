@@ -18,6 +18,8 @@ A transparent, consent-based Android prototype for a device owner. It reads Andr
 - Automatic relock when the app leaves the foreground
 - Screenshot and recent-screen preview protection
 - Dedicated WhatsApp Status category and status-media backup
+- Automatic remote-folder synchronization using WorkManager
+- Immediate sync plus approximately 15-minute background updates when online
 
 ## Connect phone and WhatsApp media
 
@@ -26,6 +28,8 @@ Open **Phone Media Archive** and choose **Add folder**. Connect Pictures, Movies
 Choose **Backup folder** separately, preferably a folder created for this purpose such as `Documents/Phone Archive Backup`, then tap **Back up now**. The app organizes independent copies into Statuses, Pictures, Videos, Audio, and Documents subfolders. Items marked **PROTECTED COPY** are independent of the originals. Removing an original from WhatsApp or another connected source does not remove its protected copy. The destination is user-selected shared storage, so uninstalling the app does not automatically erase it.
 
 The **Statuses** filter identifies accessible media in WhatsApp status-cache or status-archive folders. Status pictures, videos, and audio are included when **Back up now** runs. Your own posted status is also preserved when its original media is in any connected source folder. Statuses that WhatsApp never downloaded or exposed as files cannot be copied.
+
+For remote access, choose a folder exposed by a cloud document provider such as Google Drive as the **Backup folder**. Automatic remote updates turn on when that folder is connected. The app performs an immediate sync and schedules best-effort updates about every 15 minutes while connected to the internet. Android may delay background work for battery optimization. Open the same cloud folder on a computer to review updated files.
 
 ## Build and install
 
