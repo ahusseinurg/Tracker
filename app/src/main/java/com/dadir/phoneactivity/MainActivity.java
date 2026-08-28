@@ -56,7 +56,7 @@ public class MainActivity extends SecureActivity {
         root.setBackgroundColor(Color.rgb(245, 247, 250));
 
         LinearLayout header = box(navy, 22);
-        TextView title = text("Phone Activity", 26, Color.WHITE, true);
+        TextView title = text("Maping", 26, Color.WHITE, true);
         TextView subtitle = text("Private, on-device activity overview", 14, Color.rgb(210, 225, 240), false);
         header.addView(title);
         header.addView(subtitle);
