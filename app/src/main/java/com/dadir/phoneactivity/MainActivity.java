@@ -139,6 +139,8 @@ public class MainActivity extends SecureActivity {
         Button media = action("Open phone media archive", () ->
                 startActivity(new Intent(this, MediaLibraryActivity.class)));
         content.addView(media, margins(0, 12, 0, 0));
+        Button settings = action("Settings", () -> startActivity(new Intent(this, SettingsActivity.class)));
+        content.addView(settings, margins(0, 10, 0, 0));
     }
 
     private void addAppRow(UsageRepository.AppRow row, int rank) {
