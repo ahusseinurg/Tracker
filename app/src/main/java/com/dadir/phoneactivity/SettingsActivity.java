@@ -2,6 +2,7 @@ package com.dadir.phoneactivity;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.app.TimePickerDialog;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -24,6 +25,7 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
 import java.util.Date;
+import java.util.Calendar;
 
 public class SettingsActivity extends SecureActivity {
     private static final int PICK_BACKUP = 91;
@@ -49,8 +51,20 @@ public class SettingsActivity extends SecureActivity {
     private void render() {
         body.removeAllViews();
         section("Automatic backup");
+        boolean daily="daily_time".equals(prefs.getString("sync_schedule_mode","interval"));
+        Button mode=button("Schedule mode: "+(daily?"Daily at a set time":"Repeating interval"));
+        mode.setOnClickListener(v->{prefs.edit().putString("sync_schedule_mode",daily?"interval":"daily_time").apply();ArchiveWorker.schedule(this);render();});
+        body.addView(mode,margin(0,0,0,7));
         long interval=prefs.getLong("sync_interval_minutes",15);
-        Button schedule=button("Schedule: "+labelInterval(interval)); schedule.setOnClickListener(v->{ long next=interval==15?60:interval==60?360:interval==360?1440:15; prefs.edit().putLong("sync_interval_minutes",next).apply(); ArchiveWorker.schedule(this); render(); }); body.addView(schedule);
+        if(daily) {
+            int hour=prefs.getInt("sync_daily_hour",2), minute=prefs.getInt("sync_daily_minute",0);
+            Button time=button("Backup time: "+formatTime(hour,minute));
+            time.setOnClickListener(v->new TimePickerDialog(this,(picker,h,m)->{prefs.edit().putInt("sync_daily_hour",h).putInt("sync_daily_minute",m).apply();ArchiveWorker.schedule(this);render();},hour,minute,android.text.format.DateFormat.is24HourFormat(this)).show());
+            body.addView(time,margin(0,0,0,7));
+            body.addView(text("Android may run the backup after this time if the phone is asleep, offline, force-stopped, or restricted by battery settings.",12,Color.DKGRAY,false),margin(2,0,2,8));
+        } else {
+            Button schedule=button("Repeat every: "+labelInterval(interval)); schedule.setOnClickListener(v->{ long next=interval==15?60:interval==60?360:interval==360?1440:15; prefs.edit().putLong("sync_interval_minutes",next).apply(); ArchiveWorker.schedule(this); render(); }); body.addView(schedule,margin(0,0,0,7));
+        }
         toggle("Wi-Fi only", "wifi_only", false, true);
         toggle("Automatic remote updates", "auto_sync", true, true);
 
@@ -93,6 +107,7 @@ public class SettingsActivity extends SecureActivity {
     private void pickBackup(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,PICK_BACKUP);}
     @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request!=PICK_BACKUP||result!=RESULT_OK||data==null||data.getData()==null)return;Uri uri=data.getData();try{getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);prefs.edit().putString("backup_uri",uri.toString()).putBoolean("auto_sync",true).apply();ArchiveWorker.schedule(this);ArchiveWorker.runNow(this);render();}catch(Exception e){Toast.makeText(this,"Could not save destination access",Toast.LENGTH_LONG).show();}}
     private String labelInterval(long m){return m==15?"15 minutes":m==60?"1 hour":m==360?"6 hours":"24 hours";}
+    private String formatTime(int hour,int minute){Calendar c=Calendar.getInstance();c.set(Calendar.HOUR_OF_DAY,hour);c.set(Calendar.MINUTE,minute);return android.text.format.DateFormat.getTimeFormat(this).format(c.getTime());}
     private EditText pinField(String hint){EditText e=new EditText(this);e.setHint(hint);e.setSingleLine(true);e.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD);return e;}
     private void section(String title){body.addView(text(title,19,navy,true),margin(2,18,0,9));}
     private LinearLayout box(int color){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(dp(18),dp(18),dp(18),dp(18));l.setBackgroundColor(color);return l;}
