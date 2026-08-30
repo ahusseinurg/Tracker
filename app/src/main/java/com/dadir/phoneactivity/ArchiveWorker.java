@@ -19,6 +19,7 @@ import androidx.work.WorkerParameters;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -35,13 +36,29 @@ public class ArchiveWorker extends Worker {
 
     static void schedule(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        long minutes = Math.max(15, prefs.getLong("sync_interval_minutes", 15));
+        boolean daily = "daily_time".equals(prefs.getString("sync_schedule_mode", "interval"));
+        long minutes = daily ? 24 * 60 : Math.max(15, prefs.getLong("sync_interval_minutes", 15));
         NetworkType network = prefs.getBoolean("wifi_only", false) ? NetworkType.UNMETERED : NetworkType.CONNECTED;
         Constraints constraints = new Constraints.Builder().setRequiredNetworkType(network).build();
-        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(ArchiveWorker.class, minutes, TimeUnit.MINUTES)
-                .setConstraints(constraints).build();
+        PeriodicWorkRequest.Builder builder = new PeriodicWorkRequest.Builder(ArchiveWorker.class, minutes, TimeUnit.MINUTES)
+                .setConstraints(constraints);
+        if (daily) builder.setInitialDelay(delayUntilDailyTime(prefs), TimeUnit.MILLISECONDS);
+        PeriodicWorkRequest request = builder.build();
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_WORK, ExistingPeriodicWorkPolicy.UPDATE, request);
+    }
+
+    private static long delayUntilDailyTime(SharedPreferences prefs) {
+        int hour = prefs.getInt("sync_daily_hour", 2);
+        int minute = prefs.getInt("sync_daily_minute", 0);
+        Calendar now = Calendar.getInstance();
+        Calendar next = (Calendar) now.clone();
+        next.set(Calendar.HOUR_OF_DAY, hour);
+        next.set(Calendar.MINUTE, minute);
+        next.set(Calendar.SECOND, 0);
+        next.set(Calendar.MILLISECOND, 0);
+        if (!next.after(now)) next.add(Calendar.DAY_OF_YEAR, 1);
+        return next.getTimeInMillis() - now.getTimeInMillis();
     }
 
     static void runNow(Context context) {
