@@ -34,15 +34,20 @@ public class ArchiveWorker extends Worker {
     }
 
     static void schedule(Context context) {
-        Constraints constraints = new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build();
-        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(ArchiveWorker.class, 15, TimeUnit.MINUTES)
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        long minutes = Math.max(15, prefs.getLong("sync_interval_minutes", 15));
+        NetworkType network = prefs.getBoolean("wifi_only", false) ? NetworkType.UNMETERED : NetworkType.CONNECTED;
+        Constraints constraints = new Constraints.Builder().setRequiredNetworkType(network).build();
+        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(ArchiveWorker.class, minutes, TimeUnit.MINUTES)
                 .setConstraints(constraints).build();
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_WORK, ExistingPeriodicWorkPolicy.UPDATE, request);
     }
 
     static void runNow(Context context) {
-        Constraints constraints = new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build();
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        NetworkType network = prefs.getBoolean("wifi_only", false) ? NetworkType.UNMETERED : NetworkType.CONNECTED;
+        Constraints constraints = new Constraints.Builder().setRequiredNetworkType(network).build();
         WorkManager.getInstance(context).enqueue(new OneTimeWorkRequest.Builder(ArchiveWorker.class)
                 .setConstraints(constraints).build());
     }
@@ -69,15 +74,17 @@ public class ArchiveWorker extends Worker {
             if (root != null && root.canRead()) walk(root, root.getName() == null ? "" : root.getName(), files);
         }
 
-        int failures = 0;
+        int failures = 0, copied = 0, skipped = 0;
+        long started = System.currentTimeMillis();
         for (SourceFile source : files) {
             try {
                 String category = source.status ? "Statuses" : category(source.mime);
+                if (!enabled(prefs, category)) { skipped++; continue; }
                 DocumentFile folder = destination.findFile(category);
                 if (folder == null) folder = destination.createDirectory(category);
                 if (folder == null || !folder.canWrite()) { failures++; continue; }
                 DocumentFile existing = folder.findFile(source.name);
-                if (existing != null && existing.length() == source.size) continue;
+                if (existing != null && existing.length() == source.size) { skipped++; continue; }
                 String name = existing == null ? source.name : uniqueName(source.name, source.modified);
                 DocumentFile output = folder.createFile(source.mime, name);
                 if (output == null) { failures++; continue; }
@@ -87,10 +94,36 @@ public class ArchiveWorker extends Worker {
                     byte[] buffer = new byte[64 * 1024]; int count;
                     while ((count = in.read(buffer)) != -1) out.write(buffer, 0, count);
                 }
+                copied++;
             } catch (Exception error) { failures++; }
         }
-        prefs.edit().putLong("last_sync", System.currentTimeMillis()).putInt("last_sync_failures", failures).apply();
+        enforceRetention(destination, prefs.getInt("retention_days", 0));
+        prefs.edit().putLong("last_sync", System.currentTimeMillis())
+                .putLong("last_sync_duration_ms", System.currentTimeMillis() - started)
+                .putInt("last_sync_copied", copied).putInt("last_sync_skipped", skipped)
+                .putInt("last_sync_failures", failures).apply();
         return failures == 0 ? Result.success() : Result.retry();
+    }
+
+    private static boolean enabled(SharedPreferences prefs, String category) {
+        if (category.equals("Statuses")) return prefs.getBoolean("type_statuses", true);
+        if (category.equals("Pictures")) return prefs.getBoolean("type_pictures", true);
+        if (category.equals("Videos")) return prefs.getBoolean("type_videos", true);
+        if (category.equals("Audio")) return prefs.getBoolean("type_audio", true);
+        return prefs.getBoolean("type_documents", true);
+    }
+
+    private static void enforceRetention(DocumentFile destination, int days) {
+        if (days <= 0) return;
+        long cutoff = System.currentTimeMillis() - days * 86_400_000L;
+        try {
+            for (DocumentFile folder : destination.listFiles()) {
+                if (!folder.isDirectory()) continue;
+                for (DocumentFile file : folder.listFiles()) {
+                    if (file.isFile() && file.lastModified() > 0 && file.lastModified() < cutoff) file.delete();
+                }
+            }
+        } catch (Exception ignored) { }
     }
 
     private void walk(DocumentFile folder, String path, List<SourceFile> files) {
