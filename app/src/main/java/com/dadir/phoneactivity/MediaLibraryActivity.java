@@ -131,6 +131,11 @@ public class MediaLibraryActivity extends SecureActivity {
             Set<String> folders = savedFolders();
             folders.add(uri.toString());
             getSharedPreferences(PREFS, MODE_PRIVATE).edit().putStringSet(FOLDER_URIS, folders).remove(FOLDER_URI).apply();
+            if (getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("auto_sync", true)
+                    && getSharedPreferences(PREFS, MODE_PRIVATE).getString(BACKUP_URI, null) != null) {
+                ArchiveWorker.schedule(this);
+                ArchiveWorker.runNow(this);
+            }
             scan(folders);
         } catch (SecurityException error) {
             Toast.makeText(this, "Folder access could not be saved", Toast.LENGTH_LONG).show();
@@ -237,9 +242,11 @@ public class MediaLibraryActivity extends SecureActivity {
         });
         body.addView(auto, margin(0, 8, 0, 0));
         long lastSync = getSharedPreferences(PREFS, MODE_PRIVATE).getLong("last_sync", 0);
+        int syncFailures = getSharedPreferences(PREFS, MODE_PRIVATE).getInt("last_sync_failures", 0);
         String syncLine = lastSync == 0 ? "No automatic sync completed yet"
-                : "Last automatic sync: " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(lastSync);
-        body.addView(text(syncLine, 12, Color.GRAY, false), margin(2, 6, 0, 0));
+                : "Last automatic sync: " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(lastSync)
+                + (syncFailures > 0 ? "  •  " + syncFailures + " file(s) need retry" : "  •  Successful");
+        body.addView(text(syncLine, 12, syncFailures > 0 ? Color.rgb(170,60,35) : Color.GRAY, false), margin(2, 6, 0, 0));
         body.addView(text(savedFolders().size() + " folders connected  •  " + items.size() + " files", 15, Color.DKGRAY, false), margin(2, 12, 0, 8));
         if (!scanNotice.isEmpty()) body.addView(text(scanNotice, 13, Color.rgb(150,70,30), false), margin(2, 0, 0, 10));
 
