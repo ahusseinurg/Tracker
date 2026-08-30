@@ -321,6 +321,7 @@ public class MediaLibraryActivity extends SecureActivity {
                 if (item.archived) continue;
                 try {
                     String folderName = item.status ? "Statuses" : item.category();
+                    if (!manualTypeEnabled(folderName)) { skipped++; continue; }
                     DocumentFile targetFolder = destination.findFile(folderName);
                     if (targetFolder == null) targetFolder = destination.createDirectory(folderName);
                     if (targetFolder == null || !targetFolder.canWrite()) { failed++; continue; }
@@ -350,6 +351,14 @@ public class MediaLibraryActivity extends SecureActivity {
         int dot = name.lastIndexOf('.');
         if (dot <= 0) return name + "-" + marker;
         return name.substring(0, dot) + "-" + marker + name.substring(dot);
+    }
+
+    private boolean manualTypeEnabled(String category) {
+        if (category.equals("Statuses")) return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("type_statuses", true);
+        if (category.equals("Pictures")) return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("type_pictures", true);
+        if (category.equals("Videos")) return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("type_videos", true);
+        if (category.equals("Audio")) return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("type_audio", true);
+        return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("type_documents", true);
     }
 
     private LinearLayout card() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(dp(16),dp(15),dp(16),dp(15)); l.setBackgroundColor(Color.WHITE); return l; }
