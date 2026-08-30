@@ -20,6 +20,7 @@ A transparent, consent-based Android prototype for a device owner. It reads Andr
 - Dedicated WhatsApp Status category and status-media backup
 - Automatic remote-folder synchronization using WorkManager
 - Immediate sync plus approximately 15-minute background updates when online
+- Responsive local-media scanning with time, depth, and file-count safeguards
 
 ## Connect phone and WhatsApp media
 
