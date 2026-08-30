@@ -38,6 +38,7 @@ public class MediaLibraryActivity extends SecureActivity {
     private final List<MediaItem> items = new ArrayList<>();
     private LinearLayout body;
     private String filter = "All";
+    private String scanNotice = "";
     private final int navy = Color.rgb(16, 42, 67);
     private final int blue = Color.rgb(37, 99, 235);
 
@@ -149,35 +150,53 @@ public class MediaLibraryActivity extends SecureActivity {
         body.addView(text("Scanning media…", 16, navy, true));
         new Thread(() -> {
             List<MediaItem> found = new ArrayList<>();
-            for (String raw : uris) {
-                DocumentFile root = DocumentFile.fromTreeUri(this, Uri.parse(raw));
-                if (root != null && root.canRead()) walk(root, found, false,
-                        root.getName() == null ? "" : root.getName());
+            ScanState state = new ScanState(System.currentTimeMillis() + 20_000, 3000);
+            int unavailable = 0;
+            try {
+                for (String raw : uris) {
+                    if (state.shouldStop()) break;
+                    try {
+                        DocumentFile root = DocumentFile.fromTreeUri(this, Uri.parse(raw));
+                        if (root != null && root.canRead()) walk(root, found, false,
+                                root.getName() == null ? "" : root.getName(), state, 0);
+                        else unavailable++;
+                    } catch (Exception error) { unavailable++; }
+                }
+                Collections.sort(found, (a, b) -> Long.compare(b.modified, a.modified));
+            } finally {
+                int failedFolders = unavailable;
+                runOnUiThread(() -> {
+                    items.clear(); items.addAll(found);
+                    if (state.truncated) scanNotice = "Showing the newest available files. The scan was limited to keep the app responsive.";
+                    else if (failedFolders > 0) scanNotice = failedFolders + " connected folder(s) could not be read. Reconnect them if needed.";
+                    else scanNotice = found.isEmpty() ? "No media files were found in the connected source folders." : "";
+                    render();
+                });
             }
-            String backupRaw = getSharedPreferences(PREFS, MODE_PRIVATE).getString(BACKUP_URI, null);
-            if (backupRaw != null) {
-                DocumentFile backup = DocumentFile.fromTreeUri(this, Uri.parse(backupRaw));
-                if (backup != null && backup.canRead()) walk(backup, found, true,
-                        backup.getName() == null ? "" : backup.getName());
-            }
-            Collections.sort(found, (a, b) -> Long.compare(b.modified, a.modified));
-            runOnUiThread(() -> {
-                items.clear(); items.addAll(found);
-                render();
-            });
         }).start();
     }
 
-    private void walk(DocumentFile folder, List<MediaItem> output, boolean archived, String path) {
+    private void walk(DocumentFile folder, List<MediaItem> output, boolean archived, String path, ScanState state, int depth) {
+        if (state.shouldStop() || depth > 12) { state.truncated = true; return; }
         DocumentFile[] children;
         try { children = folder.listFiles(); } catch (Exception error) { return; }
         for (DocumentFile file : children) {
+            if (state.shouldStop()) { state.truncated = true; return; }
             String childPath = path + "/" + (file.getName() == null ? "" : file.getName());
-            if (file.isDirectory()) walk(file, output, archived, childPath);
-            else if (file.isFile()) output.add(new MediaItem(file.getName() == null ? "Unnamed file" : file.getName(),
-                    file.getType(), file.getUri(), file.length(), file.lastModified(), archived,
-                    isStatusPath(childPath)));
+            if (file.isDirectory()) walk(file, output, archived, childPath, state, depth + 1);
+            else if (file.isFile()) {
+                output.add(new MediaItem(file.getName() == null ? "Unnamed file" : file.getName(),
+                        file.getType(), file.getUri(), file.length(), file.lastModified(), archived,
+                        isStatusPath(childPath)));
+                state.count++;
+            }
         }
+    }
+
+    private static final class ScanState {
+        final long deadline; final int maximum; int count; boolean truncated;
+        ScanState(long deadline, int maximum) { this.deadline = deadline; this.maximum = maximum; }
+        boolean shouldStop() { return count >= maximum || System.currentTimeMillis() >= deadline; }
     }
 
     private boolean isStatusPath(String path) {
@@ -222,6 +241,7 @@ public class MediaLibraryActivity extends SecureActivity {
                 : "Last automatic sync: " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(lastSync);
         body.addView(text(syncLine, 12, Color.GRAY, false), margin(2, 6, 0, 0));
         body.addView(text(savedFolders().size() + " folders connected  •  " + items.size() + " files", 15, Color.DKGRAY, false), margin(2, 12, 0, 8));
+        if (!scanNotice.isEmpty()) body.addView(text(scanNotice, 13, Color.rgb(150,70,30), false), margin(2, 0, 0, 10));
 
         LinearLayout filters = new LinearLayout(this);
         filters.setOrientation(LinearLayout.HORIZONTAL);
