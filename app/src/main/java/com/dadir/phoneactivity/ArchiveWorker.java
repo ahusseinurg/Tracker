@@ -1,5 +1,7 @@
 package com.dadir.phoneactivity;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -46,6 +48,28 @@ public class ArchiveWorker extends Worker {
         PeriodicWorkRequest request = builder.build();
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_WORK, ExistingPeriodicWorkPolicy.UPDATE, request);
+        scheduleAlarm(context);
+    }
+
+    static void scheduleAlarm(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (!prefs.getBoolean("auto_sync", true) || prefs.getString("backup_uri", null) == null) return;
+        boolean daily = "daily_time".equals(prefs.getString("sync_schedule_mode", "interval"));
+        long delay = daily ? delayUntilDailyTime(prefs)
+                : TimeUnit.MINUTES.toMillis(Math.max(15, prefs.getLong("sync_interval_minutes", 15)));
+        long trigger = System.currentTimeMillis() + delay;
+        AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        PendingIntent pending = alarmIntent(context);
+        boolean exact = android.os.Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms();
+        if (exact) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pending);
+        else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pending);
+        prefs.edit().putLong("next_sync_attempt", trigger).putBoolean("exact_alarm_allowed", exact).apply();
+    }
+
+    private static PendingIntent alarmIntent(Context context) {
+        Intent intent = new Intent(context, BackupAlarmReceiver.class).setAction("com.dadir.phoneactivity.BACKUP_ALARM");
+        return PendingIntent.getBroadcast(context, 404, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private static long delayUntilDailyTime(SharedPreferences prefs) {
@@ -71,17 +95,21 @@ public class ArchiveWorker extends Worker {
 
     static void cancel(Context context) {
         WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_WORK);
+        AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        alarms.cancel(alarmIntent(context));
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("next_sync_attempt").apply();
     }
 
     @NonNull @Override public Result doWork() {
         Context context = getApplicationContext();
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        if (!prefs.getBoolean("auto_sync", true)) return Result.success();
+        prefs.edit().putLong("last_sync_attempt", System.currentTimeMillis()).putString("last_sync_error", "").apply();
+        if (!prefs.getBoolean("auto_sync", true)) return stopped(prefs, "Automatic backup is turned off");
         String backupRaw = prefs.getString("backup_uri", null);
-        if (backupRaw == null) return Result.success();
+        if (backupRaw == null) return stopped(prefs, "No backup destination is connected");
 
         DocumentFile destination = DocumentFile.fromTreeUri(context, Uri.parse(backupRaw));
-        if (destination == null || !destination.canWrite()) return Result.retry();
+        if (destination == null || !destination.canWrite()) return stopped(prefs, "The backup destination cannot be written. Reconnect the Drive folder");
         Set<String> sources = new LinkedHashSet<>(prefs.getStringSet("folder_uris", new LinkedHashSet<>()));
         String legacy = prefs.getString("folder_uri", null);
         if (legacy != null) sources.add(legacy);
@@ -118,8 +146,14 @@ public class ArchiveWorker extends Worker {
         prefs.edit().putLong("last_sync", System.currentTimeMillis())
                 .putLong("last_sync_duration_ms", System.currentTimeMillis() - started)
                 .putInt("last_sync_copied", copied).putInt("last_sync_skipped", skipped)
-                .putInt("last_sync_failures", failures).apply();
+                .putInt("last_sync_failures", failures)
+                .putString("last_sync_error", failures == 0 ? "" : failures + " file(s) could not be copied").apply();
         return failures == 0 ? Result.success() : Result.retry();
+    }
+
+    private Result stopped(SharedPreferences prefs, String message) {
+        prefs.edit().putString("last_sync_error", message).putInt("last_sync_failures", 1).apply();
+        return Result.failure();
     }
 
     private static boolean enabled(SharedPreferences prefs, String category) {
