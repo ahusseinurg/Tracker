@@ -3,10 +3,13 @@ package com.dadir.phoneactivity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.app.TimePickerDialog;
+import android.app.AlarmManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
+import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -40,6 +43,14 @@ public class SettingsActivity extends SecureActivity {
         setContentView(screen()); render();
     }
 
+    @Override protected void onResume() {
+        super.onResume();
+        if (prefs != null) {
+            if (prefs.getBoolean("auto_sync", true) && prefs.getString("backup_uri", null) != null) ArchiveWorker.schedule(this);
+            render();
+        }
+    }
+
     private View screen() {
         LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(Color.rgb(245,247,250));
         LinearLayout header=box(navy); TextView back=text("‹  Maping",15,Color.WHITE,true); back.setOnClickListener(v->finish()); header.addView(back);
@@ -67,6 +78,16 @@ public class SettingsActivity extends SecureActivity {
         }
         toggle("Wi-Fi only", "wifi_only", false, true);
         toggle("Automatic remote updates", "auto_sync", true, true);
+        if(Build.VERSION.SDK_INT>=31) {
+            AlarmManager alarms=(AlarmManager)getSystemService(ALARM_SERVICE);
+            if(!alarms.canScheduleExactAlarms()) {
+                Button allow=button("Allow reliable scheduled backups");
+                allow.setBackgroundColor(Color.rgb(190,105,20));
+                allow.setOnClickListener(v->{try{startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,Uri.parse("package:"+getPackageName())));}catch(Exception e){startActivity(new Intent(Settings.ACTION_SETTINGS));}});
+                body.addView(allow,margin(0,0,0,7));
+                body.addView(text("Allow Alarms & reminders for Maping, then return here.",12,Color.rgb(165,65,35),false),margin(2,0,2,8));
+            }
+        }
 
         section("Source folders");
         Set<String> folders=new LinkedHashSet<>(prefs.getStringSet("folder_uris",new LinkedHashSet<>()));
@@ -92,8 +113,12 @@ public class SettingsActivity extends SecureActivity {
         changePinForm();
 
         section("Sync history and errors");
-        long last=prefs.getLong("last_sync",0), duration=prefs.getLong("last_sync_duration_ms",0); int copied=prefs.getInt("last_sync_copied",0), skipped=prefs.getInt("last_sync_skipped",0), failed=prefs.getInt("last_sync_failures",0);
-        body.addView(text(last==0?"No automatic sync has completed.":"Last sync: "+DateFormat.getDateTimeInstance().format(new Date(last))+"\nCopied: "+copied+"  •  Skipped: "+skipped+"  •  Failed: "+failed+"\nDuration: "+(duration/1000)+" seconds",14,failed>0?Color.rgb(170,50,35):Color.DKGRAY,false));
+        long last=prefs.getLong("last_sync",0), attempt=prefs.getLong("last_sync_attempt",0), nextAttempt=prefs.getLong("next_sync_attempt",0), duration=prefs.getLong("last_sync_duration_ms",0); int copied=prefs.getInt("last_sync_copied",0), skipped=prefs.getInt("last_sync_skipped",0), failed=prefs.getInt("last_sync_failures",0); String error=prefs.getString("last_sync_error","");
+        String history=last==0?"No backup has completed.":"Last completed: "+DateFormat.getDateTimeInstance().format(new Date(last))+"\nCopied: "+copied+"  •  Skipped: "+skipped+"  •  Failed: "+failed+"\nDuration: "+(duration/1000)+" seconds";
+        if(attempt>0) history+="\nLast attempt: "+DateFormat.getDateTimeInstance().format(new Date(attempt));
+        if(nextAttempt>0) history+="\nNext scheduled attempt: "+DateFormat.getDateTimeInstance().format(new Date(nextAttempt));
+        if(error!=null&&!error.isEmpty()) history+="\nProblem: "+error;
+        body.addView(text(history,14,error!=null&&!error.isEmpty()?Color.rgb(170,50,35):Color.DKGRAY,false));
         Button run=button("Run automatic sync now"); run.setOnClickListener(v->{ArchiveWorker.runNow(this);Toast.makeText(this,"Sync scheduled",Toast.LENGTH_SHORT).show();}); body.addView(run,margin(0,8,0,0));
     }
 
