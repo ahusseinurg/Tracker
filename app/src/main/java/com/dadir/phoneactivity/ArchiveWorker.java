@@ -188,6 +188,10 @@ public class ArchiveWorker extends Worker {
         if (state.processed % 20 == 0) prefs.edit().putInt("sync_progress_files", state.processed)
                 .putString("sync_phase", "Scanning and copying files").apply();
         try {
+            long start = prefs.getLong("backup_start_ms", 0);
+            boolean includeExisting = prefs.getBoolean("backup_include_existing", false);
+            long modified = source.lastModified();
+            if (!includeExisting && (modified <= 0 || modified < start)) { state.skipped++; return; }
             String category = status ? "Statuses" : category(mime);
             if (!enabled(prefs, category)) { state.skipped++; return; }
             DocumentFile folder = destination.findFile(category);
