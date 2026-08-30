@@ -89,6 +89,17 @@ public class SettingsActivity extends SecureActivity {
             }
         }
 
+        boolean includeExisting=prefs.getBoolean("backup_include_existing",false);
+        long backupStart=prefs.getLong("backup_start_ms",System.currentTimeMillis());
+        Button startRule=button(includeExisting?"Backup files from: All existing files":"Backup files from: "+DateFormat.getDateInstance().format(new Date(backupStart)));
+        startRule.setOnClickListener(v->{prefs.edit().putBoolean("backup_include_existing",!includeExisting).apply();render();});
+        body.addView(startRule,margin(0,0,0,7));
+        Button startNow=button("Start new backups from now");
+        startNow.setBackgroundColor(Color.rgb(95,105,115));
+        startNow.setOnClickListener(v->{prefs.edit().putLong("backup_start_ms",System.currentTimeMillis()).putBoolean("backup_include_existing",false).apply();Toast.makeText(this,"Only files added from now forward will be backed up",Toast.LENGTH_LONG).show();render();});
+        body.addView(startNow,margin(0,0,0,7));
+        body.addView(text("By default, older files from before this date are skipped. Changing to All existing files includes older media during the next backup.",12,Color.DKGRAY,false),margin(2,0,2,8));
+
         section("Source folders");
         Set<String> folders=new LinkedHashSet<>(prefs.getStringSet("folder_uris",new LinkedHashSet<>()));
         if(folders.isEmpty()) body.addView(text("No source folders connected.",14,Color.GRAY,false));
