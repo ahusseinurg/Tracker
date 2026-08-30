@@ -12,6 +12,10 @@ public class ArchiveApplication extends Application implements Application.Activ
         super.onCreate();
         registerActivityLifecycleCallbacks(this);
         android.content.SharedPreferences prefs = getSharedPreferences("media_library", MODE_PRIVATE);
+        if (!prefs.contains("backup_start_ms")) {
+            prefs.edit().putLong("backup_start_ms", System.currentTimeMillis())
+                    .putBoolean("backup_include_existing", false).apply();
+        }
         if (prefs.getBoolean("auto_sync", true) && prefs.getString("backup_uri", null) != null) {
             ArchiveWorker.schedule(this);
             long last = prefs.getLong("last_sync", 0);
