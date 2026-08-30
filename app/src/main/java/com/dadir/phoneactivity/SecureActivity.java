@@ -8,7 +8,8 @@ import android.view.WindowManager;
 public abstract class SecureActivity extends Activity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        if (getSharedPreferences("media_library", MODE_PRIVATE).getBoolean("block_screenshots", true))
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
         if (!LockStore.isUnlocked()) {
             startActivity(new Intent(this, PinActivity.class));
             finish();
