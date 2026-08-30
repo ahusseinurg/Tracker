@@ -113,10 +113,11 @@ public class SettingsActivity extends SecureActivity {
         changePinForm();
 
         section("Sync history and errors");
-        long last=prefs.getLong("last_sync",0), attempt=prefs.getLong("last_sync_attempt",0), nextAttempt=prefs.getLong("next_sync_attempt",0), duration=prefs.getLong("last_sync_duration_ms",0); int copied=prefs.getInt("last_sync_copied",0), skipped=prefs.getInt("last_sync_skipped",0), failed=prefs.getInt("last_sync_failures",0); String error=prefs.getString("last_sync_error","");
+        long last=prefs.getLong("last_sync",0), attempt=prefs.getLong("last_sync_attempt",0), nextAttempt=prefs.getLong("next_sync_attempt",0), duration=prefs.getLong("last_sync_duration_ms",0); int copied=prefs.getInt("last_sync_copied",0), skipped=prefs.getInt("last_sync_skipped",0), failed=prefs.getInt("last_sync_failures",0), progress=prefs.getInt("sync_progress_files",0); String error=prefs.getString("last_sync_error",""), phase=prefs.getString("sync_phase","Idle");
         String history=last==0?"No backup has completed.":"Last completed: "+DateFormat.getDateTimeInstance().format(new Date(last))+"\nCopied: "+copied+"  •  Skipped: "+skipped+"  •  Failed: "+failed+"\nDuration: "+(duration/1000)+" seconds";
         if(attempt>0) history+="\nLast attempt: "+DateFormat.getDateTimeInstance().format(new Date(attempt));
         if(nextAttempt>0) history+="\nNext scheduled attempt: "+DateFormat.getDateTimeInstance().format(new Date(nextAttempt));
+        if(attempt>last) history+="\nCurrent activity: "+phase+" ("+progress+" files checked)";
         if(error!=null&&!error.isEmpty()) history+="\nProblem: "+error;
         body.addView(text(history,14,error!=null&&!error.isEmpty()?Color.rgb(170,50,35):Color.DKGRAY,false));
         Button run=button("Run automatic sync now"); run.setOnClickListener(v->{ArchiveWorker.runNow(this);Toast.makeText(this,"Sync scheduled",Toast.LENGTH_SHORT).show();}); body.addView(run,margin(0,8,0,0));
