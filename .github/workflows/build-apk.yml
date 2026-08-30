@@ -30,12 +30,12 @@ jobs:
         run: gradle --no-daemon assembleDebug
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk Maping-v0.8.0.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Maping-v0.9.0.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Maping-v0.8.0-APK
-          path: Maping-v0.8.0.apk
+          name: Maping-v0.9.0-APK
+          path: Maping-v0.9.0.apk
           if-no-files-found: error
           retention-days: 30
