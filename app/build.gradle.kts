@@ -27,4 +27,5 @@ android {
 dependencies {
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("androidx.work:work-runtime:2.11.2")
+    implementation("com.google.android.gms:play-services-auth:22.0.0")
 }
