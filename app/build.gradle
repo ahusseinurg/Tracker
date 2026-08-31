@@ -12,8 +12,18 @@ android {
         versionName '0.15.0'
     }
 
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('MAPING_KEYSTORE_PATH') ?: 'missing.jks')
+            storePassword System.getenv('MAPING_KEYSTORE_PASSWORD') ?: ''
+            keyAlias System.getenv('MAPING_KEY_ALIAS') ?: ''
+            keyPassword System.getenv('MAPING_KEY_PASSWORD') ?: ''
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -28,4 +38,5 @@ android {
 dependencies {
     implementation 'androidx.documentfile:documentfile:1.0.1'
     implementation 'androidx.work:work-runtime:2.11.2'
+    implementation 'com.google.android.gms:play-services-auth:22.0.0'
 }
