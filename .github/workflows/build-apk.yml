@@ -1,8 +1,6 @@
 name: Build Phone Archive APK
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -26,16 +24,24 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+      - name: Restore release keystore
+        run: echo "${{ secrets.MAPING_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/Maping-release.jks"
+
+      - name: Build signed release APK
+        env:
+          MAPING_KEYSTORE_PATH: ${{ runner.temp }}/Maping-release.jks
+          MAPING_KEYSTORE_PASSWORD: ${{ secrets.MAPING_KEYSTORE_PASSWORD }}
+          MAPING_KEY_ALIAS: ${{ secrets.MAPING_KEY_ALIAS }}
+          MAPING_KEY_PASSWORD: ${{ secrets.MAPING_KEY_PASSWORD }}
+        run: gradle --no-daemon assembleRelease
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk Maping-v0.11.0.apk
+        run: cp app/build/outputs/apk/release/app-release.apk Maping-release.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Maping-v0.11.0-APK
-          path: Maping-v0.11.0.apk
+          name: Maping-signed-release-APK
+          path: Maping-release.apk
           if-no-files-found: error
           retention-days: 30
