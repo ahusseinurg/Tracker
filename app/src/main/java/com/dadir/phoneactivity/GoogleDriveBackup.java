@@ -72,6 +72,8 @@ final class GoogleDriveBackup {
     private void upload(DocumentFile source,String name,String path) throws Exception {
         String lower=name.toLowerCase(Locale.US);
         if(lower.startsWith(".nomedia")){out.skipped++;return;}
+        long start=prefs.getLong("backup_start_ms",0); boolean includeExisting=prefs.getBoolean("backup_include_existing",false); long modified=source.lastModified();
+        if(!includeExisting&&(modified<=0||modified<start)){out.skipped++;return;}
         out.checked++; if(out.checked%10==0)prefs.edit().putInt("sync_progress_files",out.checked).putString("sync_phase","Uploading to Google Drive").apply();
         String mime=source.getType()==null?"application/octet-stream":source.getType();
         String category=category(path,lower,mime);

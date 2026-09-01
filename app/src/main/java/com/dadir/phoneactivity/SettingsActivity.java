@@ -3,6 +3,7 @@ package com.dadir.phoneactivity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.app.TimePickerDialog;
+import android.app.DatePickerDialog;
 import android.app.AlarmManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -97,15 +98,17 @@ public class SettingsActivity extends SecureActivity {
         }
 
         boolean includeExisting=prefs.getBoolean("backup_include_existing",false);
-        long backupStart=prefs.getLong("backup_start_ms",System.currentTimeMillis());
-        Button startRule=button(includeExisting?"Backup files from: All existing files":"Backup files from: "+DateFormat.getDateInstance().format(new Date(backupStart)));
-        startRule.setOnClickListener(v->{prefs.edit().putBoolean("backup_include_existing",!includeExisting).apply();render();});
-        body.addView(startRule,margin(0,0,0,7));
-        Button startNow=button("Start new backups from now");
-        startNow.setBackgroundColor(Color.rgb(95,105,115));
-        startNow.setOnClickListener(v->{prefs.edit().putLong("backup_start_ms",System.currentTimeMillis()).putBoolean("backup_include_existing",false).apply();Toast.makeText(this,"Only files added from now forward will be backed up",Toast.LENGTH_LONG).show();render();});
-        body.addView(startNow,margin(0,0,0,7));
-        body.addView(text("By default, older files from before this date are skipped. Changing to All existing files includes older media during the next backup.",12,Color.DKGRAY,false),margin(2,0,2,8));
+        long backupStart=prefs.getLong("backup_start_ms",startOfToday());
+        body.addView(text(includeExisting?"Backup starting point: All existing files":"Backup starting point: "+DateFormat.getDateInstance().format(new Date(backupStart)),14,navy,true),margin(2,0,2,8));
+        Button allFiles=button("All existing files");
+        allFiles.setOnClickListener(v->{prefs.edit().putBoolean("backup_include_existing",true).putInt("drive_scan_cursor",0).apply();Toast.makeText(this,"All existing files will be included",Toast.LENGTH_LONG).show();render();});
+        body.addView(allFiles,margin(0,0,0,7));
+        Button today=button("Start from today");
+        today.setOnClickListener(v->{prefs.edit().putLong("backup_start_ms",startOfToday()).putBoolean("backup_include_existing",false).putInt("drive_scan_cursor",0).apply();Toast.makeText(this,"Only files from today forward will be included",Toast.LENGTH_LONG).show();render();});
+        body.addView(today,margin(0,0,0,7));
+        Button chooseDate=button("Choose a start date"); chooseDate.setBackgroundColor(Color.rgb(95,105,115));
+        chooseDate.setOnClickListener(v->chooseBackupStartDate(backupStart)); body.addView(chooseDate,margin(0,0,0,7));
+        body.addView(text("Files older than the selected starting date are skipped. Changing this setting restarts the scan so every selected folder is checked.",12,Color.DKGRAY,false),margin(2,0,2,8));
 
         section("Source folders");
         Set<String> folders=new LinkedHashSet<>(prefs.getStringSet("folder_uris",new LinkedHashSet<>()));
@@ -158,6 +161,8 @@ public class SettingsActivity extends SecureActivity {
     @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==AUTHORIZE_DRIVE){if(result==RESULT_OK)try{Identity.getAuthorizationClient(this).getAuthorizationResultFromIntent(data);driveAuthorized();}catch(ApiException e){Toast.makeText(this,"Google Drive permission was not granted",Toast.LENGTH_LONG).show();}return;}if(request!=PICK_BACKUP||result!=RESULT_OK||data==null||data.getData()==null)return;Uri uri=data.getData();try{getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);prefs.edit().putString("backup_uri",uri.toString()).putBoolean("auto_sync",true).apply();ArchiveWorker.schedule(this);ArchiveWorker.runNow(this);render();}catch(Exception e){Toast.makeText(this,"Could not save destination access",Toast.LENGTH_LONG).show();}}
     private String labelInterval(long m){return m==15?"15 minutes":m==60?"1 hour":m==360?"6 hours":"24 hours";}
     private String formatTime(int hour,int minute){Calendar c=Calendar.getInstance();c.set(Calendar.HOUR_OF_DAY,hour);c.set(Calendar.MINUTE,minute);return android.text.format.DateFormat.getTimeFormat(this).format(c.getTime());}
+    private long startOfToday(){Calendar c=Calendar.getInstance();c.set(Calendar.HOUR_OF_DAY,0);c.set(Calendar.MINUTE,0);c.set(Calendar.SECOND,0);c.set(Calendar.MILLISECOND,0);return c.getTimeInMillis();}
+    private void chooseBackupStartDate(long current){Calendar c=Calendar.getInstance();c.setTimeInMillis(current);new DatePickerDialog(this,(picker,year,month,day)->{Calendar selected=Calendar.getInstance();selected.set(year,month,day,0,0,0);selected.set(Calendar.MILLISECOND,0);prefs.edit().putLong("backup_start_ms",selected.getTimeInMillis()).putBoolean("backup_include_existing",false).putInt("drive_scan_cursor",0).apply();Toast.makeText(this,"Backup will include files from "+DateFormat.getDateInstance().format(selected.getTime()),Toast.LENGTH_LONG).show();render();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show();}
     private EditText pinField(String hint){EditText e=new EditText(this);e.setHint(hint);e.setSingleLine(true);e.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD);return e;}
     private void section(String title){body.addView(text(title,19,navy,true),margin(2,18,0,9));}
     private LinearLayout box(int color){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(dp(18),dp(18),dp(18),dp(18));l.setBackgroundColor(color);return l;}
