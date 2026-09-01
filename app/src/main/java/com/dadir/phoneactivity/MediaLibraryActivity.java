@@ -51,12 +51,12 @@ public class MediaLibraryActivity extends SecureActivity {
     private View buildScreen() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.rgb(245, 247, 250));
+        root.setBackgroundColor(ModernUi.BG);
 
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.VERTICAL);
         header.setPadding(dp(18), dp(20), dp(18), dp(18));
-        header.setBackgroundColor(navy);
+        ModernUi.fill(header,navy,0);
         TextView back = text("‹  Phone Activity", 15, Color.WHITE, true);
         back.setPadding(0, 0, 0, dp(10));
         back.setOnClickListener(v -> finish());
@@ -132,7 +132,8 @@ public class MediaLibraryActivity extends SecureActivity {
             folders.add(uri.toString());
             getSharedPreferences(PREFS, MODE_PRIVATE).edit().putStringSet(FOLDER_URIS, folders).remove(FOLDER_URI).apply();
             if (getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("auto_sync", true)
-                    && getSharedPreferences(PREFS, MODE_PRIVATE).getString(BACKUP_URI, null) != null) {
+                    && (getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("google_drive_connected",false)
+                    || getSharedPreferences(PREFS, MODE_PRIVATE).getString(BACKUP_URI, null) != null)) {
                 ArchiveWorker.schedule(this);
                 ArchiveWorker.runNow(this);
             }
@@ -221,18 +222,12 @@ public class MediaLibraryActivity extends SecureActivity {
         View gap = new View(this); tools.addView(gap, new LinearLayout.LayoutParams(dp(8), 1));
         tools.addView(refresh, new LinearLayout.LayoutParams(0, dp(48), 1));
         body.addView(tools);
-        LinearLayout backupTools = new LinearLayout(this);
-        Button location = button(getSharedPreferences(PREFS, MODE_PRIVATE).contains(BACKUP_URI) ? "Change backup folder" : "Choose backup folder");
-        location.setOnClickListener(v -> chooseBackupFolder());
         Button backup = button("Back up now");
         backup.setOnClickListener(v -> backupNow());
-        backupTools.addView(location, new LinearLayout.LayoutParams(0, dp(48), 1));
-        View backupGap = new View(this); backupTools.addView(backupGap, new LinearLayout.LayoutParams(dp(8), 1));
-        backupTools.addView(backup, new LinearLayout.LayoutParams(0, dp(48), 1));
-        body.addView(backupTools, margin(0, 8, 0, 0));
+        body.addView(backup,new LinearLayout.LayoutParams(-1,dp(50)));
         boolean automatic = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("auto_sync", true);
         Button auto = button(automatic ? "Automatic remote updates: ON" : "Automatic remote updates: OFF");
-        auto.setBackgroundColor(automatic ? Color.rgb(21,128,61) : Color.rgb(95,105,115));
+        ModernUi.fill(auto,automatic ? ModernUi.GREEN : ModernUi.SLATE,14);
         auto.setOnClickListener(v -> {
             boolean next = !getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("auto_sync", true);
             getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("auto_sync", next).apply();
@@ -272,7 +267,7 @@ public class MediaLibraryActivity extends SecureActivity {
         if (shown >= 500) body.addView(text("Showing the newest 500 matching files.", 13, Color.GRAY, false));
 
         Button disconnect = button("Disconnect all folders");
-        disconnect.setBackgroundColor(Color.rgb(150, 45, 45));
+        ModernUi.fill(disconnect,Color.rgb(150,45,45),14);
         disconnect.setOnClickListener(v -> {
             for (String raw : savedFolders()) {
                 try { getContentResolver().releasePersistableUriPermission(Uri.parse(raw), Intent.FLAG_GRANT_READ_URI_PERMISSION); }
@@ -307,8 +302,11 @@ public class MediaLibraryActivity extends SecureActivity {
     }
 
     private void backupNow() {
+        if(getSharedPreferences(PREFS,MODE_PRIVATE).getBoolean("google_drive_connected",false)){
+            ArchiveWorker.runNow(this);Toast.makeText(this,"Google Drive backup started",Toast.LENGTH_SHORT).show();return;
+        }
         String raw = getSharedPreferences(PREFS, MODE_PRIVATE).getString(BACKUP_URI, null);
-        if (raw == null) { chooseBackupFolder(); return; }
+        if (raw == null) { Toast.makeText(this,"Connect Google Drive in Settings first",Toast.LENGTH_LONG).show();startActivity(new Intent(this,SettingsActivity.class));return; }
         Toast.makeText(this, "Backup started", Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             DocumentFile destination = DocumentFile.fromTreeUri(this, Uri.parse(raw));
@@ -361,8 +359,8 @@ public class MediaLibraryActivity extends SecureActivity {
         return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("type_documents", true);
     }
 
-    private LinearLayout card() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(dp(16),dp(15),dp(16),dp(15)); l.setBackgroundColor(Color.WHITE); return l; }
-    private Button button(String label) { Button b = new Button(this); b.setText(label); b.setTextColor(Color.WHITE); b.setTextSize(14); b.setAllCaps(false); b.setBackgroundColor(blue); return b; }
+    private LinearLayout card() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(dp(16),dp(15),dp(16),dp(15)); ModernUi.outlined(l,Color.WHITE,ModernUi.BORDER,16); ModernUi.elevate(l,1); return l; }
+    private Button button(String label) { Button b = new Button(this); b.setText(label); b.setTextColor(Color.WHITE); b.setTextSize(14); b.setAllCaps(false); ModernUi.fill(b,blue,14); ModernUi.elevate(b,1); return b; }
     private TextView text(String value, int size, int color, boolean bold) { TextView t = new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(color); t.setLineSpacing(0,1.15f); if (bold) t.setTypeface(Typeface.DEFAULT,Typeface.BOLD); return t; }
     private ViewGroup.MarginLayoutParams margin(int l,int t,int r,int b) { LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2); p.setMargins(dp(l),dp(t),dp(r),dp(b)); return p; }
     private String readableSize(long bytes) { if (bytes < 1024) return bytes + " B"; if (bytes < 1024*1024) return (bytes/1024) + " KB"; return String.format(Locale.US,"%.1f MB",bytes/(1024d*1024d)); }

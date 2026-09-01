@@ -36,7 +36,7 @@ public class MediaViewerActivity extends SecureActivity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER);
         root.setPadding(dp(16), dp(16), dp(16), dp(16));
-        root.setBackgroundColor(Color.rgb(12, 25, 38));
+        root.setBackgroundColor(Color.rgb(12,25,38));
         TextView title = new TextView(this);
         title.setText("‹  " + name); title.setTextColor(Color.WHITE); title.setTextSize(17); title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         title.setPadding(0,0,0,dp(14)); title.setOnClickListener(v -> finish());
@@ -70,7 +70,7 @@ public class MediaViewerActivity extends SecureActivity {
     private void showAudio(LinearLayout root, Uri uri) {
         TextView icon = new TextView(this); icon.setText("VOICE NOTE / AUDIO"); icon.setTextSize(21); icon.setTextColor(Color.WHITE); icon.setGravity(Gravity.CENTER);
         root.addView(icon, new LinearLayout.LayoutParams(-1,0,1));
-        play = new Button(this); play.setText("Play"); play.setTextSize(18); play.setAllCaps(false);
+        play = new Button(this); play.setText("Play"); play.setTextSize(18); play.setAllCaps(false);play.setTextColor(Color.WHITE);ModernUi.fill(play,ModernUi.BLUE,14);
         root.addView(play, new LinearLayout.LayoutParams(-1,dp(58)));
         try {
             player = new MediaPlayer(); player.setDataSource(this, uri); player.prepareAsync(); play.setEnabled(false);
@@ -84,7 +84,7 @@ public class MediaViewerActivity extends SecureActivity {
     private void showDocument(LinearLayout root, Uri uri, String mime) {
         TextView note = new TextView(this); note.setText("This document type uses an installed document viewer."); note.setTextColor(Color.WHITE); note.setTextSize(17); note.setGravity(Gravity.CENTER);
         root.addView(note,new LinearLayout.LayoutParams(-1,0,1));
-        Button open = new Button(this); open.setText("Open document"); open.setAllCaps(false);
+        Button open = new Button(this); open.setText("Open document"); open.setAllCaps(false);open.setTextColor(Color.WHITE);ModernUi.fill(open,ModernUi.BLUE,14);
         open.setOnClickListener(v -> { try { Intent i=new Intent(Intent.ACTION_VIEW); i.setDataAndType(uri,mime); i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); startActivity(i); } catch(Exception e) { error(); } });
         root.addView(open,new LinearLayout.LayoutParams(-1,dp(58)));
     }

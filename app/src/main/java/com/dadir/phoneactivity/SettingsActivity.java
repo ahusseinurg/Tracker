@@ -60,7 +60,7 @@ public class SettingsActivity extends SecureActivity {
     }
 
     private View screen() {
-        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(Color.rgb(245,247,250));
+        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(ModernUi.BG);
         LinearLayout header=box(navy); TextView back=text("‹  Maping",15,Color.WHITE,true); back.setOnClickListener(v->finish()); header.addView(back);
         header.addView(text("Settings",27,Color.WHITE,true)); root.addView(header);
         ScrollView scroll=new ScrollView(this); body=new LinearLayout(this); body.setOrientation(LinearLayout.VERTICAL); body.setPadding(dp(14),dp(14),dp(14),dp(30)); scroll.addView(body);
@@ -90,7 +90,7 @@ public class SettingsActivity extends SecureActivity {
             AlarmManager alarms=(AlarmManager)getSystemService(ALARM_SERVICE);
             if(!alarms.canScheduleExactAlarms()) {
                 Button allow=button("Allow reliable scheduled backups");
-                allow.setBackgroundColor(Color.rgb(190,105,20));
+                ModernUi.fill(allow,Color.rgb(190,105,20),14);
                 allow.setOnClickListener(v->{try{startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,Uri.parse("package:"+getPackageName())));}catch(Exception e){startActivity(new Intent(Settings.ACTION_SETTINGS));}});
                 body.addView(allow,margin(0,0,0,7));
                 body.addView(text("Allow Alarms & reminders for Maping, then return here.",12,Color.rgb(165,65,35),false),margin(2,0,2,8));
@@ -106,7 +106,7 @@ public class SettingsActivity extends SecureActivity {
         Button today=button("Start from today");
         today.setOnClickListener(v->{prefs.edit().putLong("backup_start_ms",startOfToday()).putBoolean("backup_include_existing",false).putInt("drive_scan_cursor",0).apply();Toast.makeText(this,"Only files from today forward will be included",Toast.LENGTH_LONG).show();render();});
         body.addView(today,margin(0,0,0,7));
-        Button chooseDate=button("Choose a start date"); chooseDate.setBackgroundColor(Color.rgb(95,105,115));
+        Button chooseDate=button("Choose a start date"); ModernUi.fill(chooseDate,ModernUi.SLATE,14);
         chooseDate.setOnClickListener(v->chooseBackupStartDate(backupStart)); body.addView(chooseDate,margin(0,0,0,7));
         body.addView(text("Files older than the selected starting date are skipped. Changing this setting restarts the scan so every selected folder is checked.",12,Color.DKGRAY,false),margin(2,0,2,8));
 
@@ -115,13 +115,13 @@ public class SettingsActivity extends SecureActivity {
         if(folders.isEmpty()) body.addView(text("No source folders connected.",14,Color.GRAY,false));
         for(String raw:new LinkedHashSet<>(folders)) {
             DocumentFile f=DocumentFile.fromTreeUri(this,Uri.parse(raw)); String name=f!=null&&f.getName()!=null?f.getName():"Connected folder";
-            Button remove=button("Remove: "+name); remove.setBackgroundColor(Color.rgb(150,55,45)); remove.setOnClickListener(v->{ Set<String> next=new LinkedHashSet<>(prefs.getStringSet("folder_uris",new LinkedHashSet<>())); next.remove(raw); prefs.edit().putStringSet("folder_uris",next).apply(); try{getContentResolver().releasePersistableUriPermission(Uri.parse(raw),Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){} render(); }); body.addView(remove,margin(0,0,0,7));
+            Button remove=button("Remove: "+name); ModernUi.fill(remove,Color.rgb(150,55,45),14); remove.setOnClickListener(v->{ Set<String> next=new LinkedHashSet<>(prefs.getStringSet("folder_uris",new LinkedHashSet<>())); next.remove(raw); prefs.edit().putStringSet("folder_uris",next).apply(); try{getContentResolver().releasePersistableUriPermission(Uri.parse(raw),Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){} render(); }); body.addView(remove,margin(0,0,0,7));
         }
 
         section("Remote destination");
         boolean drive=prefs.getBoolean("google_drive_connected",false);
         Button connectDrive=button(drive?"Google Drive: CONNECTED":"Connect Google Drive");
-        connectDrive.setBackgroundColor(drive?Color.rgb(21,128,61):blue); connectDrive.setOnClickListener(v->authorizeDrive()); body.addView(connectDrive,margin(0,0,0,7));
+        ModernUi.fill(connectDrive,drive?ModernUi.GREEN:blue,14); connectDrive.setOnClickListener(v->authorizeDrive()); body.addView(connectDrive,margin(0,0,0,7));
         if(drive) body.addView(text("The first Drive backup includes all selected-folder files. Later runs skip unchanged files.",12,Color.DKGRAY,false),margin(2,0,2,8));
         body.addView(text(drive?"Google Drive account connected.":"Connect Google Drive to choose the account used for backups.",14,drive?Color.rgb(21,128,61):Color.rgb(170,60,35),true));
 
@@ -148,7 +148,7 @@ public class SettingsActivity extends SecureActivity {
         Button run=button("Backup now"); run.setOnClickListener(v->{ArchiveWorker.runNow(this);Toast.makeText(this,"Backup started",Toast.LENGTH_SHORT).show();}); body.addView(run,margin(0,8,0,0));
     }
 
-    private void toggle(String label,String key,boolean def,boolean reschedule) { boolean value=prefs.getBoolean(key,def); Button b=button(label+": "+(value?"ON":"OFF")); b.setBackgroundColor(value?Color.rgb(21,128,61):Color.rgb(95,105,115)); b.setOnClickListener(v->{prefs.edit().putBoolean(key,!value).apply();if(reschedule){if(key.equals("auto_sync")&&!value){ArchiveWorker.schedule(this);ArchiveWorker.runNow(this);}else if(key.equals("auto_sync")){ArchiveWorker.cancel(this);}else ArchiveWorker.schedule(this);}render();});body.addView(b,margin(0,0,0,7)); }
+    private void toggle(String label,String key,boolean def,boolean reschedule) { boolean value=prefs.getBoolean(key,def); Button b=button(label+": "+(value?"ON":"OFF")); ModernUi.fill(b,value?ModernUi.GREEN:ModernUi.SLATE,14); b.setOnClickListener(v->{prefs.edit().putBoolean(key,!value).apply();if(reschedule){if(key.equals("auto_sync")&&!value){ArchiveWorker.schedule(this);ArchiveWorker.runNow(this);}else if(key.equals("auto_sync")){ArchiveWorker.cancel(this);}else ArchiveWorker.schedule(this);}render();});body.addView(b,margin(0,0,0,7)); }
 
     private void changePinForm() {
         EditText current=pinField("Current PIN"), next=pinField("New 4–8 digit PIN"), confirm=pinField("Confirm new PIN"); body.addView(current);body.addView(next);body.addView(confirm);
@@ -165,8 +165,8 @@ public class SettingsActivity extends SecureActivity {
     private void chooseBackupStartDate(long current){Calendar c=Calendar.getInstance();c.setTimeInMillis(current);new DatePickerDialog(this,(picker,year,month,day)->{Calendar selected=Calendar.getInstance();selected.set(year,month,day,0,0,0);selected.set(Calendar.MILLISECOND,0);prefs.edit().putLong("backup_start_ms",selected.getTimeInMillis()).putBoolean("backup_include_existing",false).putInt("drive_scan_cursor",0).apply();Toast.makeText(this,"Backup will include files from "+DateFormat.getDateInstance().format(selected.getTime()),Toast.LENGTH_LONG).show();render();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show();}
     private EditText pinField(String hint){EditText e=new EditText(this);e.setHint(hint);e.setSingleLine(true);e.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD);return e;}
     private void section(String title){body.addView(text(title,19,navy,true),margin(2,18,0,9));}
-    private LinearLayout box(int color){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(dp(18),dp(18),dp(18),dp(18));l.setBackgroundColor(color);return l;}
-    private Button button(String label){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextColor(Color.WHITE);b.setTextSize(14);b.setBackgroundColor(blue);return b;}
+    private LinearLayout box(int color){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(dp(18),dp(18),dp(18),dp(18));ModernUi.fill(l,color,0);return l;}
+    private Button button(String label){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextColor(Color.WHITE);b.setTextSize(14);ModernUi.fill(b,blue,14);ModernUi.elevate(b,1);return b;}
     private TextView text(String s,int z,int c,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(c);t.setLineSpacing(0,1.15f);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;}
     private ViewGroup.MarginLayoutParams margin(int l,int t,int r,int b){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(dp(l),dp(t),dp(r),dp(b));return p;}
     private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}

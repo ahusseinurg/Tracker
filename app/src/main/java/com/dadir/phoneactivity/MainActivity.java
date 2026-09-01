@@ -53,7 +53,7 @@ public class MainActivity extends SecureActivity {
     private View buildScreen() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.rgb(245, 247, 250));
+        root.setBackgroundColor(ModernUi.BG);
 
         LinearLayout header = box(navy, 22);
         TextView title = text("Maping", 26, Color.WHITE, true);
@@ -189,7 +189,8 @@ public class MainActivity extends SecureActivity {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(dp(padding), dp(padding), dp(padding), dp(padding));
-        layout.setBackgroundColor(color);
+        ModernUi.fill(layout,color,color==Color.WHITE?18:0);
+        if(color==Color.WHITE) ModernUi.elevate(layout,2);
         return layout;
     }
     private TextView text(String value, int size, int color, boolean bold) {
@@ -202,7 +203,7 @@ public class MainActivity extends SecureActivity {
     private Button action(String label, Runnable action) {
         Button button = new Button(this);
         button.setText(label); button.setTextColor(Color.WHITE); button.setTextSize(14);
-        button.setAllCaps(false); button.setBackgroundColor(blue);
+        button.setAllCaps(false); ModernUi.fill(button,blue,14); ModernUi.elevate(button,1);
         button.setOnClickListener(v -> action.run());
         return button;
     }
