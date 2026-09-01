@@ -35,7 +35,7 @@ final class GoogleDriveBackup {
         context=c; prefs=p; worker=w; deadline=System.currentTimeMillis()+TimeUnit.MINUTES.toMillis(12);
     }
 
-    static Outcome run(Context c, SharedPreferences p, Worker w) {
+    static synchronized Outcome run(Context c, SharedPreferences p, Worker w) {
         GoogleDriveBackup d=new GoogleDriveBackup(c,p,w);
         try { d.execute(); } catch(Exception e) { d.out.failed++; d.out.error="Google Drive: "+safe(e.getMessage()); }
         return d.out;
@@ -64,9 +64,11 @@ final class GoogleDriveBackup {
     }
 
     private void upload(DocumentFile source,String name,String path) throws Exception {
+        String lower=name.toLowerCase(Locale.US);
+        if(lower.startsWith(".nomedia")){out.skipped++;return;}
         out.checked++; if(out.checked%10==0)prefs.edit().putInt("sync_progress_files",out.checked).putString("sync_phase","Uploading to Google Drive").apply();
         String mime=source.getType()==null?"application/octet-stream":source.getType();
-        String category=isStatus(path)?"Statuses":mime.startsWith("image/")?"Pictures":mime.startsWith("video/")?"Videos":mime.startsWith("audio/")?"Audio":"Documents";
+        String category=category(path,lower,mime);
         if(!enabled(category)){out.skipped++;return;}
         String folder=findOrCreateFolder(category,rootId);
         JSONObject existing=findFile(name,folder);
@@ -106,6 +108,15 @@ final class GoogleDriveBackup {
     private static String read(InputStream in)throws Exception{if(in==null)return"";byte[] b=new byte[8192];StringBuilder s=new StringBuilder();int n;while((n=in.read(b))!=-1)s.append(new String(b,0,n,StandardCharsets.UTF_8));in.close();return s.toString();}
     private boolean stop(){return worker.isStopped()||System.currentTimeMillis()>=deadline;}
     private boolean enabled(String c){return prefs.getBoolean(c.equals("Statuses")?"type_statuses":c.equals("Pictures")?"type_pictures":c.equals("Videos")?"type_videos":c.equals("Audio")?"type_audio":"type_documents",true);}
+    private static String category(String path,String name,String mime){
+        if(isStatus(path))return "Statuses";
+        if(mime.startsWith("image/")||ends(name,"jpg","jpeg","png","gif","webp","heic","heif"))return "Pictures";
+        if(mime.startsWith("video/")||ends(name,"mp4","3gp","mkv","webm","mov","avi"))return "Videos";
+        if(mime.startsWith("audio/")||ends(name,"opus","ogg","m4a","mp3","aac","amr","wav","flac"))return "Audio";
+        if(name.startsWith("aud-")||name.startsWith("ptt-"))return "Audio";
+        return "Documents";
+    }
+    private static boolean ends(String name,String... extensions){for(String e:extensions)if(name.endsWith("."+e))return true;return false;}
     private static boolean isStatus(String p){String n=p.toLowerCase(Locale.US);return n.contains("/.statuses/")||n.contains("/statuses/")||n.contains("/status archive/");}
     private static String unique(String n,long m){int d=n.lastIndexOf('.');return d<=0?n+"-"+m:n.substring(0,d)+"-"+m+n.substring(d);}
     private static String safe(String s){return s==null?"Unknown error":s.length()>300?s.substring(0,300):s;}

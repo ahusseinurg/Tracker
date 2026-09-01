@@ -52,7 +52,8 @@ public class SettingsActivity extends SecureActivity {
     @Override protected void onResume() {
         super.onResume();
         if (prefs != null) {
-            if (prefs.getBoolean("auto_sync", true) && prefs.getString("backup_uri", null) != null) ArchiveWorker.schedule(this);
+            boolean hasDestination=prefs.getBoolean("google_drive_connected",false)||prefs.getString("backup_uri",null)!=null;
+            if (prefs.getBoolean("auto_sync", true) && hasDestination) ArchiveWorker.schedule(this);
             render();
         }
     }
@@ -141,7 +142,7 @@ public class SettingsActivity extends SecureActivity {
         if(attempt>last) history+="\nCurrent activity: "+phase+" ("+progress+" files checked)";
         if(error!=null&&!error.isEmpty()) history+="\nProblem: "+error;
         body.addView(text(history,14,error!=null&&!error.isEmpty()?Color.rgb(170,50,35):Color.DKGRAY,false));
-        Button run=button("Run automatic sync now"); run.setOnClickListener(v->{ArchiveWorker.runNow(this);Toast.makeText(this,"Sync scheduled",Toast.LENGTH_SHORT).show();}); body.addView(run,margin(0,8,0,0));
+        Button run=button("Backup now"); run.setOnClickListener(v->{ArchiveWorker.runNow(this);Toast.makeText(this,"Backup started",Toast.LENGTH_SHORT).show();}); body.addView(run,margin(0,8,0,0));
     }
 
     private void toggle(String label,String key,boolean def,boolean reschedule) { boolean value=prefs.getBoolean(key,def); Button b=button(label+": "+(value?"ON":"OFF")); b.setBackgroundColor(value?Color.rgb(21,128,61):Color.rgb(95,105,115)); b.setOnClickListener(v->{prefs.edit().putBoolean(key,!value).apply();if(reschedule){if(key.equals("auto_sync")&&!value){ArchiveWorker.schedule(this);ArchiveWorker.runNow(this);}else if(key.equals("auto_sync")){ArchiveWorker.cancel(this);}else ArchiveWorker.schedule(this);}render();});body.addView(b,margin(0,0,0,7)); }
