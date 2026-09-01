@@ -1,6 +1,5 @@
 package com.dadir.phoneactivity;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -12,8 +11,12 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.FragmentActivity;
 
-public class PinActivity extends Activity {
+public class PinActivity extends FragmentActivity {
     private EditText pin;
     private TextView message;
     private String firstPin;
@@ -38,7 +41,24 @@ public class PinActivity extends Activity {
         Button unlock = new Button(this); unlock.setText(setup ? "Continue" : "Unlock"); unlock.setTextSize(17); unlock.setAllCaps(false);
         unlock.setOnClickListener(v -> submit(unlock));
         LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(-1,dp(58)); bp.setMargins(0,dp(16),0,0); root.addView(unlock,bp);
+        if(!setup&&getSharedPreferences("media_library",MODE_PRIVATE).getBoolean("biometric_unlock",true)){
+            int authenticators=BiometricManager.Authenticators.BIOMETRIC_STRONG|BiometricManager.Authenticators.BIOMETRIC_WEAK;
+            if(BiometricManager.from(this).canAuthenticate(authenticators)==BiometricManager.BIOMETRIC_SUCCESS){
+                Button biometric=new Button(this);biometric.setText("Use fingerprint or face");biometric.setTextSize(17);biometric.setAllCaps(false);biometric.setOnClickListener(v->showBiometric(authenticators));
+                LinearLayout.LayoutParams bioParams=new LinearLayout.LayoutParams(-1,dp(58));bioParams.setMargins(0,dp(10),0,0);root.addView(biometric,bioParams);
+            }
+        }
         setContentView(root);
+        if(!setup&&getSharedPreferences("media_library",MODE_PRIVATE).getBoolean("biometric_unlock",true))showBiometricIfAvailable();
+    }
+
+    private void showBiometricIfAvailable(){int a=BiometricManager.Authenticators.BIOMETRIC_STRONG|BiometricManager.Authenticators.BIOMETRIC_WEAK;if(BiometricManager.from(this).canAuthenticate(a)==BiometricManager.BIOMETRIC_SUCCESS)showBiometric(a);}
+    private void showBiometric(int authenticators){
+        BiometricPrompt prompt=new BiometricPrompt(this,ContextCompat.getMainExecutor(this),new BiometricPrompt.AuthenticationCallback(){
+            @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result){super.onAuthenticationSucceeded(result);LockStore.unlock();startActivity(new Intent(PinActivity.this,MainActivity.class));finish();}
+            @Override public void onAuthenticationError(int code,CharSequence error){super.onAuthenticationError(code,error);if(code!=BiometricPrompt.ERROR_USER_CANCELED&&code!=BiometricPrompt.ERROR_NEGATIVE_BUTTON)message.setText(error);}
+        });
+        prompt.authenticate(new BiometricPrompt.PromptInfo.Builder().setTitle("Unlock Maping").setSubtitle("Use your fingerprint or face").setNegativeButtonText("Use PIN").setAllowedAuthenticators(authenticators).build());
     }
 
     private void submit(Button button) {

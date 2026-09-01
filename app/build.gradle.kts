@@ -8,8 +8,8 @@ android {
         applicationId = "com.dadir.phoneactivity"
         minSdk = 28
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.0.3"
+        versionCode = 20
+        versionName = "1.0.4"
     }
 
     buildTypes {
@@ -28,4 +28,5 @@ dependencies {
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("androidx.work:work-runtime:2.11.2")
     implementation("com.google.android.gms:play-services-auth:22.0.0")
+    implementation("androidx.biometric:biometric:1.1.0")
 }

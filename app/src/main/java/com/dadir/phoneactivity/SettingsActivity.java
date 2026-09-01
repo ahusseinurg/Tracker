@@ -123,8 +123,7 @@ public class SettingsActivity extends SecureActivity {
         Button connectDrive=button(drive?"Google Drive: CONNECTED":"Connect Google Drive");
         connectDrive.setBackgroundColor(drive?Color.rgb(21,128,61):blue); connectDrive.setOnClickListener(v->authorizeDrive()); body.addView(connectDrive,margin(0,0,0,7));
         if(drive) body.addView(text("The first Drive backup includes all selected-folder files. Later runs skip unchanged files.",12,Color.DKGRAY,false),margin(2,0,2,8));
-        String backup=prefs.getString("backup_uri",null); body.addView(text(backup==null?"No backup destination selected.":"Backup destination connected.",14,backup==null?Color.rgb(170,60,35):Color.rgb(21,128,61),true));
-        Button destination=button(backup==null?"Choose Google Drive folder":"Change Drive destination"); destination.setOnClickListener(v->pickBackup()); body.addView(destination,margin(0,7,0,0));
+        body.addView(text(drive?"Google Drive account connected.":"Connect Google Drive to choose the account used for backups.",14,drive?Color.rgb(21,128,61):Color.rgb(170,60,35),true));
 
         section("File types");
         toggle("WhatsApp statuses", "type_statuses", true, false); toggle("Pictures", "type_pictures", true, false); toggle("Videos", "type_videos", true, false); toggle("Audio and voice notes", "type_audio", true, false); toggle("Documents", "type_documents", true, false);
@@ -134,6 +133,7 @@ public class SettingsActivity extends SecureActivity {
         body.addView(text("Warning: choosing a retention period permanently deletes older files from the selected backup destination during sync.",12,Color.rgb(165,65,35),false),margin(2,6,2,0));
 
         section("PIN and security");
+        toggle("Fingerprint or face unlock", "biometric_unlock", true, false);
         toggle("Block screenshots and recent previews", "block_screenshots", true, false);
         changePinForm();
 

@@ -48,5 +48,6 @@ final class LockStore {
     }
 
     static boolean isUnlocked() { return unlocked; }
+    static void unlock() { unlocked = true; }
     static void lock() { unlocked = false; }
 }
