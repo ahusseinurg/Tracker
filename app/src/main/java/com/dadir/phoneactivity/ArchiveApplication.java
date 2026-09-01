@@ -16,7 +16,9 @@ public class ArchiveApplication extends Application implements Application.Activ
             prefs.edit().putLong("backup_start_ms", System.currentTimeMillis())
                     .putBoolean("backup_include_existing", false).apply();
         }
-        if (prefs.getBoolean("auto_sync", true) && prefs.getString("backup_uri", null) != null) {
+        boolean hasDestination = prefs.getBoolean("google_drive_connected", false)
+                || prefs.getString("backup_uri", null) != null;
+        if (prefs.getBoolean("auto_sync", true) && hasDestination) {
             ArchiveWorker.schedule(this);
             long last = prefs.getLong("last_sync", 0);
             if (System.currentTimeMillis() - last > 15 * 60 * 1000L) ArchiveWorker.runNow(this);

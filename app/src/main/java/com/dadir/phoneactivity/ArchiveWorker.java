@@ -53,7 +53,9 @@ public class ArchiveWorker extends Worker {
 
     static void scheduleAlarm(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        if (!prefs.getBoolean("auto_sync", true) || prefs.getString("backup_uri", null) == null) return;
+        boolean hasDestination = prefs.getBoolean("google_drive_connected", false)
+                || prefs.getString("backup_uri", null) != null;
+        if (!prefs.getBoolean("auto_sync", true) || !hasDestination) return;
         boolean daily = "daily_time".equals(prefs.getString("sync_schedule_mode", "interval"));
         long delay = daily ? delayUntilDailyTime(prefs)
                 : TimeUnit.MINUTES.toMillis(Math.max(15, prefs.getLong("sync_interval_minutes", 15)));
@@ -108,6 +110,13 @@ public class ArchiveWorker extends Worker {
         prefs.edit().putLong("last_sync_attempt", started).putString("last_sync_error", "")
                 .putString("sync_phase", "Checking folder access").putInt("sync_progress_files", 0).apply();
         if (!prefs.getBoolean("auto_sync", true)) return stopped(prefs, "Automatic backup is turned off");
+        if (prefs.getBoolean("google_drive_connected", false)) {
+            GoogleDriveBackup.Outcome d=GoogleDriveBackup.run(context,prefs,this);
+            prefs.edit().putLong("last_sync",System.currentTimeMillis()).putLong("last_sync_duration_ms",System.currentTimeMillis()-started)
+                    .putInt("last_sync_copied",d.copied).putInt("last_sync_skipped",d.skipped).putInt("last_sync_failures",d.failed)
+                    .putInt("sync_progress_files",d.checked).putString("sync_phase","Idle").putString("last_sync_error",d.error).apply();
+            return d.failed==0?Result.success():Result.retry();
+        }
         String backupRaw = prefs.getString("backup_uri", null);
         if (backupRaw == null) return stopped(prefs, "No backup destination is connected");
 

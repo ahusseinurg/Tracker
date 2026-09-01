@@ -22,6 +22,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.documentfile.provider.DocumentFile;
+import com.google.android.gms.auth.api.identity.AuthorizationRequest;
+import com.google.android.gms.auth.api.identity.Identity;
+import com.google.android.gms.common.api.Scope;
+import com.google.android.gms.common.api.ApiException;
+import java.util.Collections;
 
 import java.text.DateFormat;
 import java.util.LinkedHashSet;
@@ -32,6 +37,7 @@ import java.util.Calendar;
 
 public class SettingsActivity extends SecureActivity {
     private static final int PICK_BACKUP = 91;
+    private static final int AUTHORIZE_DRIVE = 92;
     private static final String PREFS = "media_library";
     private SharedPreferences prefs;
     private LinearLayout body;
@@ -109,6 +115,10 @@ public class SettingsActivity extends SecureActivity {
         }
 
         section("Remote destination");
+        boolean drive=prefs.getBoolean("google_drive_connected",false);
+        Button connectDrive=button(drive?"Google Drive: CONNECTED":"Connect Google Drive");
+        connectDrive.setBackgroundColor(drive?Color.rgb(21,128,61):blue); connectDrive.setOnClickListener(v->authorizeDrive()); body.addView(connectDrive,margin(0,0,0,7));
+        if(drive) body.addView(text("The first Drive backup includes all selected-folder files. Later runs skip unchanged files.",12,Color.DKGRAY,false),margin(2,0,2,8));
         String backup=prefs.getString("backup_uri",null); body.addView(text(backup==null?"No backup destination selected.":"Backup destination connected.",14,backup==null?Color.rgb(170,60,35):Color.rgb(21,128,61),true));
         Button destination=button(backup==null?"Choose Google Drive folder":"Change Drive destination"); destination.setOnClickListener(v->pickBackup()); body.addView(destination,margin(0,7,0,0));
 
@@ -142,7 +152,9 @@ public class SettingsActivity extends SecureActivity {
     }
 
     private void pickBackup(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,PICK_BACKUP);}
-    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request!=PICK_BACKUP||result!=RESULT_OK||data==null||data.getData()==null)return;Uri uri=data.getData();try{getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);prefs.edit().putString("backup_uri",uri.toString()).putBoolean("auto_sync",true).apply();ArchiveWorker.schedule(this);ArchiveWorker.runNow(this);render();}catch(Exception e){Toast.makeText(this,"Could not save destination access",Toast.LENGTH_LONG).show();}}
+    private void authorizeDrive(){AuthorizationRequest r=AuthorizationRequest.builder().setRequestedScopes(Collections.singletonList(new Scope(GoogleDriveBackup.SCOPE))).build();Identity.getAuthorizationClient(this).authorize(r).addOnSuccessListener(a->{if(a.hasResolution()){try{startIntentSenderForResult(a.getPendingIntent().getIntentSender(),AUTHORIZE_DRIVE,null,0,0,0);}catch(Exception e){Toast.makeText(this,"Could not open Google authorization",Toast.LENGTH_LONG).show();}}else{driveAuthorized();}}).addOnFailureListener(e->Toast.makeText(this,"Google Drive authorization failed: "+e.getMessage(),Toast.LENGTH_LONG).show());}
+    private void driveAuthorized(){prefs.edit().putBoolean("google_drive_connected",true).putBoolean("drive_initial_backup_complete",false).putBoolean("auto_sync",true).apply();ArchiveWorker.schedule(this);ArchiveWorker.runNow(this);Toast.makeText(this,"Google Drive connected. Initial backup scheduled.",Toast.LENGTH_LONG).show();render();}
+    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==AUTHORIZE_DRIVE){if(result==RESULT_OK)try{Identity.getAuthorizationClient(this).getAuthorizationResultFromIntent(data);driveAuthorized();}catch(ApiException e){Toast.makeText(this,"Google Drive permission was not granted",Toast.LENGTH_LONG).show();}return;}if(request!=PICK_BACKUP||result!=RESULT_OK||data==null||data.getData()==null)return;Uri uri=data.getData();try{getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);prefs.edit().putString("backup_uri",uri.toString()).putBoolean("auto_sync",true).apply();ArchiveWorker.schedule(this);ArchiveWorker.runNow(this);render();}catch(Exception e){Toast.makeText(this,"Could not save destination access",Toast.LENGTH_LONG).show();}}
     private String labelInterval(long m){return m==15?"15 minutes":m==60?"1 hour":m==360?"6 hours":"24 hours";}
     private String formatTime(int hour,int minute){Calendar c=Calendar.getInstance();c.set(Calendar.HOUR_OF_DAY,hour);c.set(Calendar.MINUTE,minute);return android.text.format.DateFormat.getTimeFormat(this).format(c.getTime());}
     private EditText pinField(String hint){EditText e=new EditText(this);e.setHint(hint);e.setSingleLine(true);e.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_VARIATION_PASSWORD);return e;}
