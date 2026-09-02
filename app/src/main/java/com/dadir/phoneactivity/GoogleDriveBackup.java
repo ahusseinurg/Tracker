@@ -30,11 +30,12 @@ final class GoogleDriveBackup {
     private final Context context; private final SharedPreferences prefs; private final Worker worker;
     private String token, rootId; private final long deadline;
     private final Outcome out = new Outcome();
-    private final int cursorTarget; private int cursorSeen;
+    private int cursorTarget; private int cursorSeen; private final long previousSync;
 
     private GoogleDriveBackup(Context c, SharedPreferences p, Worker w) {
         context=c; prefs=p; worker=w; deadline=System.currentTimeMillis()+TimeUnit.MINUTES.toMillis(12);
         cursorTarget=Math.max(0,p.getInt("drive_scan_cursor",0));
+        previousSync=p.getLong("last_sync",0);
     }
 
     static synchronized Outcome run(Context c, SharedPreferences p, Worker w) {
@@ -54,16 +55,23 @@ final class GoogleDriveBackup {
         Set<String> sources=new LinkedHashSet<>(prefs.getStringSet("folder_uris",new LinkedHashSet<>()));
         String legacy=prefs.getString("folder_uri",null); if(legacy!=null)sources.add(legacy);
         if(sources.isEmpty()) throw new IllegalStateException("No source folders are connected");
-        for(String raw:sources){ if(stop())break; DocumentFile root=DocumentFile.fromTreeUri(context,Uri.parse(raw));
-            if(root!=null&&root.canRead()) walk(root,root.getName()==null?"Phone files":root.getName()); else out.failed++; }
+        scanSources(sources);
+        if(!stop()&&cursorTarget>0&&out.checked==0&&out.skipped==0){
+            cursorTarget=0;cursorSeen=0;prefs.edit().putInt("drive_scan_cursor",0).apply();scanSources(sources);
+        }
         if(!stop()&&out.failed==0)prefs.edit().putBoolean("drive_initial_backup_complete",true).putInt("drive_scan_cursor",0).apply();
+    }
+
+    private void scanSources(Set<String> sources) throws Exception {
+        for(String raw:sources){if(stop())break;DocumentFile root=DocumentFile.fromTreeUri(context,Uri.parse(raw));
+            if(root!=null&&root.canRead())walk(root,root.getName()==null?"Phone files":root.getName());else out.failed++;}
     }
 
     private void walk(DocumentFile dir,String path) throws Exception {
         DocumentFile[] children; try{children=dir.listFiles();}catch(Exception e){out.failed++;return;}
         for(DocumentFile f:children){ if(stop())return; String n=f.getName()==null?"Unnamed":f.getName();
             if(f.isDirectory())walk(f,path+"/"+n); else if(f.isFile()){
-                if(cursorSeen<cursorTarget){cursorSeen++;continue;}
+                if(cursorSeen<cursorTarget){long modified=f.lastModified();cursorSeen++;if(modified<=0||modified<=previousSync)continue;upload(f,n,path);prefs.edit().putInt("drive_scan_cursor",cursorSeen).apply();continue;}
                 upload(f,n,path); cursorSeen++;
                 prefs.edit().putInt("drive_scan_cursor",cursorSeen).apply();
             } }
