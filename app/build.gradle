@@ -1,13 +1,43 @@
 plugins { id 'com.android.application' }
 
 android {
-    namespace 'org.dadirsons.budgettracker'
+    namespace 'com.dadir.phoneactivity'
     compileSdk 35
+
     defaultConfig {
-        applicationId 'org.dadirsons.budgettracker'
-        minSdk 24
+        applicationId 'com.dadir.phoneactivity'
+        minSdk 28
         targetSdk 35
-        versionCode 3
-        versionName '2.0.0'
+        versionCode 22
+        versionName '1.1.1'
     }
+
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('MAPING_KEYSTORE_PATH') ?: 'missing.jks')
+            storePassword System.getenv('MAPING_KEYSTORE_PASSWORD') ?: ''
+            keyAlias System.getenv('MAPING_KEY_ALIAS') ?: ''
+            keyPassword System.getenv('MAPING_KEY_PASSWORD') ?: ''
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.documentfile:documentfile:1.0.1'
+    implementation 'androidx.work:work-runtime:2.11.2'
+    implementation 'com.google.android.gms:play-services-auth:22.0.0'
+    implementation 'androidx.biometric:biometric:1.1.0'
 }
